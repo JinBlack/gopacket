@@ -34,6 +34,45 @@ func errorFunc(msg string) gopacket.Decoder {
 	})
 }
 
+// NFlogType is an enumeration of nflog type values, and acts as a decoder
+// for any type it supports.
+type NFLogFamilyType uint8
+
+const (
+	// The address family is a Linux AF_ value, so it's 2 for IPv4 and 10 for IPv6.
+	NFLogTypeLLC  NFLogFamilyType = 0
+	NFLogTypeIPv4 NFLogFamilyType = 0x2
+	NFLogTypeIPv6 NFLogFamilyType = 0xa
+)
+
+// NFLogTLVType is an enumeration of nflog type values, and acts as a decoder
+// for any type it supports.
+type NFLogTLVType uint8
+
+const (
+	//The type values are, as per the Linux linux/netfilter/nfnetlink_log.h header:
+	NFULA_UNSPEC             NFLogTLVType = 0
+	NFULA_PACKET_HDR         NFLogTLVType = 1
+	NFULA_MARK               NFLogTLVType = 2  /* __u32 nfmark */
+	NFULA_TIMESTAMP          NFLogTLVType = 3  /* nfulnl_msg_packet_timestamp */
+	NFULA_IFINDEX_INDEV      NFLogTLVType = 4  /* __u32 ifindex */
+	NFULA_IFINDEX_OUTDEV     NFLogTLVType = 5  /* __u32 ifindex */
+	NFULA_IFINDEX_PHYSINDEV  NFLogTLVType = 6  /* __u32 ifindex */
+	NFULA_IFINDEX_PHYSOUTDEV NFLogTLVType = 7  /* __u32 ifindex */
+	NFULA_HWADDR             NFLogTLVType = 8  /* nfulnl_msg_packet_hw */
+	NFULA_PAYLOAD            NFLogTLVType = 9  /* opaque data payload */
+	NFULA_PREFIX             NFLogTLVType = 10 /* string prefix */
+	NFULA_UID                NFLogTLVType = 11 /* user id of socket */
+	NFULA_SEQ                NFLogTLVType = 12 /* instance-local sequence number */
+	NFULA_SEQ_GLOBAL         NFLogTLVType = 13 /* global sequence number */
+	NFULA_GID                NFLogTLVType = 14 /* group id of socket */
+	NFULA_HWTYPE             NFLogTLVType = 15 /* hardware type */
+	NFULA_HWHEADER           NFLogTLVType = 16 /* hardware header */
+	NFULA_HWLEN              NFLogTLVType = 17 /* hardware header length */
+	NFULA_CT                 NFLogTLVType = 18 /* nf_conntrack_netlink.h */
+	NFULA_CT_INFO            NFLogTLVType = 19 /* enum ip_conntrack_info */
+)
+
 // EthernetType is an enumeration of ethernet type values, and acts as a decoder
 // for any type it supports.
 type EthernetType uint16
@@ -132,6 +171,7 @@ const (
 	LinkTypeLinuxUSB       LinkType = 220
 	LinkTypeIPv4           LinkType = 228
 	LinkTypeIPv6           LinkType = 229
+	LinkTypeNFLog          LinkType = 239
 )
 
 // PPPoECode is the PPPoE code enum, taken from http://tools.ietf.org/html/rfc2516
@@ -307,6 +347,9 @@ func initActualTypeData() {
 	// decoder whenever they encounter that IPProtocol.
 
 	// Here we link up all enumerations with their respective names and decoders.
+	NFLogTypeMetadata[NFLogTypeLLC] = EnumMetadata{DecodeWith: gopacket.DecodeFunc(decodeLLC), Name: "LLC", LayerType: LayerTypeLLC}
+	NFLogTypeMetadata[NFLogTypeIPv4] = EnumMetadata{DecodeWith: gopacket.DecodeFunc(decodeIPv4), Name: "IPv4", LayerType: LayerTypeIPv4}
+
 	EthernetTypeMetadata[EthernetTypeLLC] = EnumMetadata{DecodeWith: gopacket.DecodeFunc(decodeLLC), Name: "LLC", LayerType: LayerTypeLLC}
 	EthernetTypeMetadata[EthernetTypeIPv4] = EnumMetadata{DecodeWith: gopacket.DecodeFunc(decodeIPv4), Name: "IPv4", LayerType: LayerTypeIPv4}
 	EthernetTypeMetadata[EthernetTypeIPv6] = EnumMetadata{DecodeWith: gopacket.DecodeFunc(decodeIPv6), Name: "IPv6", LayerType: LayerTypeIPv6}
@@ -370,6 +413,7 @@ func initActualTypeData() {
 
 	PPPoECodeMetadata[PPPoECodeSession] = EnumMetadata{DecodeWith: gopacket.DecodeFunc(decodePPP), Name: "PPP"}
 
+	LinkTypeMetadata[LinkTypeNFLog] = EnumMetadata{DecodeWith: gopacket.DecodeFunc(decodeNFLog), Name: "NFLog"}
 	LinkTypeMetadata[LinkTypeEthernet] = EnumMetadata{DecodeWith: gopacket.DecodeFunc(decodeEthernet), Name: "Ethernet"}
 	LinkTypeMetadata[LinkTypePPP] = EnumMetadata{DecodeWith: gopacket.DecodeFunc(decodePPP), Name: "PPP"}
 	LinkTypeMetadata[LinkTypeFDDI] = EnumMetadata{DecodeWith: gopacket.DecodeFunc(decodeFDDI), Name: "FDDI"}

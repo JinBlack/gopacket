@@ -13,6 +13,7 @@ import (
 
 func init() {
 	initUnknownTypesForLinkType()
+	initUnknownTypesForNFLogType()
 	initUnknownTypesForEthernetType()
 	initUnknownTypesForPPPType()
 	initUnknownTypesForIPProtocol()
@@ -59,6 +60,43 @@ func initUnknownTypesForLinkType() {
 		LinkTypeMetadata[i] = EnumMetadata{
 			DecodeWith: &errorDecodersForLinkType[i],
 			Name:       "UnknownLinkType",
+		}
+	}
+}
+
+// Decoder calls NFLogTypeMetadata.DecodeWith's decoder.
+func (a NFLogFamilyType) Decode(data []byte, p gopacket.PacketBuilder) error {
+	return NFLogTypeMetadata[a].DecodeWith.Decode(data, p)
+}
+
+// String returns NFLogTypeMetadata.Name.
+func (a NFLogFamilyType) String() string {
+	return NFLogTypeMetadata[a].Name
+}
+
+// LayerType returns EthernetTypeMetadata.LayerType.
+func (a NFLogFamilyType) LayerType() gopacket.LayerType {
+	return NFLogTypeMetadata[a].LayerType
+}
+
+type errorDecoderForNFLogType int
+
+func (a *errorDecoderForNFLogType) Decode(data []byte, p gopacket.PacketBuilder) error {
+	return a
+}
+func (a *errorDecoderForNFLogType) Error() string {
+	return fmt.Sprintf("Unable to decode NFLogType %d", int(*a))
+}
+
+var errorDecodersForNFLogType [65536]errorDecoderForNFLogType
+var NFLogTypeMetadata [65536]EnumMetadata
+
+func initUnknownTypesForNFLogType() {
+	for i := 0; i < 65536; i++ {
+		errorDecodersForNFLogType[i] = errorDecoderForNFLogType(i)
+		NFLogTypeMetadata[i] = EnumMetadata{
+			DecodeWith: &errorDecodersForNFLogType[i],
+			Name:       "UnknownNFLogType",
 		}
 	}
 }
