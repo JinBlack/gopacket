@@ -35,9 +35,11 @@ type NFLog struct {
 // LayerType returns LayerTypeEthernet
 func (e *NFLog) LayerType() gopacket.LayerType { return LayerTypeNFLog }
 
-// func (e *NFLog) LinkFlow() gopacket.Flow {
-// 	return gopacket.NewFlow(EndpointMAC, e.SrcMAC, e.DstMAC)
-// }
+func (e *NFLog) LinkFlow() gopacket.Flow {
+	var srcdstbyte = []byte{}
+	binary.LittleEndian.PutUint16(srcdstbyte, e.ResourceID)
+	return gopacket.NewFlow(EndpointMAC, srcdstbyte, srcdstbyte)
+}
 
 func (nfl *NFLog) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	if len(data) < 4 {
@@ -79,18 +81,25 @@ func (nfl *NFLog) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error
 // SerializeTo writes the serialized form of this layer into the
 // SerializationBuffer, implementing gopacket.SerializableLayer.
 // See the docs for gopacket.SerializableLayer for more info.
-func (eth *NFLog) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeOptions) error {
-	// if len(eth.DstMAC) != 6 {
-	// 	return fmt.Errorf("invalid dst MAC: %v", eth.DstMAC)
-	// }
-	// if len(eth.SrcMAC) != 6 {
-	// 	return fmt.Errorf("invalid src MAC: %v", eth.SrcMAC)
-	// }
-	// payload := b.Bytes()
-	// bytes, err := b.PrependBytes(14)
-	// if err != nil {
-	// 	return err
-	// }
+func (nfl *NFLog) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeOptions) error {
+	payload := b.Bytes()
+	payload[0] = byte(nfl.NFLogFamilyType)
+	payload[1] = byte(nfl.Version)
+	binary.LittleEndian.PutUint16(payload[2:], nfl.ResourceID)
+	pIndex := 4
+	for tlvIndex := range nfl.TLVs {
+		tlv := nfl.TLVs[tlvIndex]
+		binary.LittleEndian.PutUint16(payload[pIndex:], tlv.Lenght)
+		binary.LittleEndian.PutUint16(payload[pIndex+2:], uint16(tlv.Type))
+		copy(payload[pIndex+4:], tlv.Value)
+		if tlv.Lenght < 8 && tlv.Lenght != 4 {
+			copy(payload[tlv.Lenght:], make([]byte, 8-tlv.Lenght))
+			pIndex += 8
+		} else {
+			pIndex += int(tlv.Lenght)
+		}
+
+	}
 	// copy(bytes, eth.DstMAC)
 	// copy(bytes[6:], eth.SrcMAC)
 	// if eth.Length != 0 || eth.EthernetType == EthernetTypeLLC {
@@ -133,6 +142,6 @@ func decodeNFLog(data []byte, p gopacket.PacketBuilder) error {
 		return err
 	}
 	p.AddLayer(nfl)
-	// p.SetLinkLayer(eth)
+	p.SetLinkLayer(nfl)
 	return p.NextDecoder(nfl.EthernetType)
 }
